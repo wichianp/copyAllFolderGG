@@ -97,14 +97,7 @@
         document.getElementById('formContainer').style.display = 'none';
 
         // เริ่มต้นคัดลอกโฟลเดอร์
-        google.script.run.withSuccessHandler(function(response) {
-          // เมื่อคัดลอกสำเร็จ
-          const messageBox = document.getElementById('status');
-          messageBox.textContent = response.message;
-          messageBox.style.display = 'block';
-
-          // อัปเดตแถบความคืบหน้าเป็น 100% เมื่อเสร็จสิ้น
-        }).withFailureHandler(function(error) {
+        google.script.run.withSuccessHandler().withFailureHandler(function(error) {
           const messageBox = document.getElementById('status');
           messageBox.textContent = 'เกิดข้อผิดพลาด: ' + error.message;
           messageBox.style.display = 'block';
