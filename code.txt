@@ -1,0 +1,266 @@
+# index.html
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+      body {
+        padding: 20px;
+        background-color: #f8f9fa;
+      }
+      .container {
+        max-width: 600px;
+        margin: auto;
+        background-color: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+      }
+      h3 {
+        font-size: 20px;
+        text-align: center;
+        margin-bottom: 20px;
+      }
+      .btn-custom {
+        background-color: #007bff;
+        color: white;
+      }
+      .btn-custom:hover {
+        background-color: #0056b3;
+        color: white;
+      }
+      .message-box {
+        margin-top: 20px;
+        display: none;
+      }
+      #progressContainer {
+        display: none;
+        margin-top: 20px;
+      }
+      #progress-bar {
+        width: 100%;
+        background-color: #eee;
+      }
+      #progress {
+        width: 0;
+        height: 15px;
+        background-color: #007bff;
+        text-align: center;
+        line-height: 15px;
+        font-size: 10px;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="formContainer">
+        <h3>คัดลอกโฟลเดอร์จาก Google Drive</h3>
+        <form id="copyFolderForm">
+          <div class="mb-3">
+            <label for="sharedFolderId" class="form-label">ที่อยู่ของโฟลเดอร์ที่แชร์ (URL)</label>
+            <input type="text" class="form-control" id="sharedFolderId" placeholder="กรอก URL ของโฟลเดอร์ต้นทาง" required>
+          </div>
+          <div class="mb-3">
+            <label for="destinationFolderId" class="form-label">ที่อยู่ของโฟลเดอร์ปลายทาง (URL)</label>
+            <input type="text" class="form-control" id="destinationFolderId" placeholder="กรอก URL ของโฟลเดอร์ปลายทาง" required>
+          </div>
+          <button type="submit" class="btn btn-custom">คัดลอกโฟลเดอร์</button>
+        </form>
+      </div>
+
+      <div id="progressContainer">
+        <p>ความคืบหน้าการคัดลอกไฟล์</p>
+        <div id="progress-bar">
+          <div id="progress">0%</div>
+        </div>
+        <p id="status">คัดลอกแล้ว 0 จาก 0 ไฟล์</p>
+      </div>
+
+    </div>
+
+
+    <script>
+
+      document.getElementById('copyFolderForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        // รับค่า Folder ID ที่แชร์และปลายทางจากผู้ใช้
+        const sharedFolderUrl = document.getElementById('sharedFolderId').value;
+        const destinationFolderUrl = document.getElementById('destinationFolderId').value;
+        const sharedFolderId = sharedFolderUrl.split('/')[5]
+        const destinationFolderId = destinationFolderUrl.split('/')[5]
+        // แสดงแถบความคืบหน้า
+        document.getElementById('progressContainer').style.display = 'block';
+        document.getElementById('formContainer').style.display = 'none';
+
+        // เริ่มต้นคัดลอกโฟลเดอร์
+        google.script.run.withSuccessHandler(function(response) {
+          // เมื่อคัดลอกสำเร็จ
+          const messageBox = document.getElementById('statusMessage');
+          messageBox.textContent = response.message;
+          messageBox.style.display = 'block';
+
+          // อัปเดตแถบความคืบหน้าเป็น 100% เมื่อเสร็จสิ้น
+        }).withFailureHandler(function(error) {
+          const messageBox = document.getElementById('statusMessage');
+          messageBox.textContent = 'เกิดข้อผิดพลาด: ' + error.message;
+          messageBox.style.display = 'block';
+        }).copySharedFolderToDestination(sharedFolderId, destinationFolderId);
+
+        // อัปเดตความคืบหน้าในทุก 1 วินาที
+        updateProgress();
+      });
+
+
+
+      function updateProgress() {
+        let copiedItems
+        let totalItems
+        let totalFolders
+        let percentComplete
+        let status
+        google.script.run.withSuccessHandler(function(status) {
+          status = status
+          copiedItems = status.copiedItems;
+          totalItems = status.totalItems;
+          totalFolders = status.totalFolders;
+          
+          // คำนวณเปอร์เซ็นต์ของความคืบหน้า
+          percentComplete = Math.round((copiedItems / totalItems) * 100);
+          
+          // อัปเดต progress bar และสถานะ
+          document.getElementById('progress').style.width = percentComplete + '%';
+          document.getElementById('progress').innerText = percentComplete + '%';
+          document.getElementById('status').innerText = 'คัดลอกแล้ว ' + copiedItems + ' จาก ' + totalItems + ' ไฟล์ (' + totalFolders + ' โฟลเดอร์)';
+          
+          // ถ้ายังไม่ครบทุกไฟล์ ให้ทำ polling ต่อ
+          if (copiedItems < totalItems) {
+            setTimeout(updateProgress, 2000); // ทำการเรียกฟังก์ชันนี้ทุก 2 วินาที
+          } else {
+            document.getElementById('status').innerText = 'คัดลอกเสร็จสมบูรณ์'
+            document.getElementById('sharedFolderId').value = ""
+            document.getElementById('destinationFolderId').value = ""
+          }
+        }).getProgressStatus(); // เรียกใช้ฟังก์ชัน getProgressStatus() เพื่อดึงสถานะ
+      }
+
+      // เริ่มการตรวจสอบความคืบหน้าเมื่อหน้าเว็บโหลดเสร็จ
+      window.onload = function() {
+          updateProgress();
+      };
+
+
+    </script>
+  </body>
+</html>
+
+# code.gs
+
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('index')
+      .setTitle('คัดลอกโฟลเดอร์จาก Google Drive');
+}
+
+
+function copySharedFolderToDestination(sharedFolderId, destinationFolderId) {
+
+  var cache = CacheService.getScriptCache();
+   // เคลียร์ค่า cache ก่อนเริ่มกระบวนการใหม่
+   Logger.log(cache.get('totalItems'))
+  cache.remove('copiedItems');
+  cache.remove('totalItems');
+  cache.remove('totalFolders'); // เพิ่มการลบ cache ของโฟลเดอร์ย่อย
+
+  try {
+    Logger.log(cache.get('totalItems'))
+    var sharedFolder = DriveApp.getFolderById(sharedFolderId);
+    var destinationFolder = DriveApp.getFolderById(destinationFolderId);
+
+    var totalItems = countTotalItems(sharedFolder);
+    var totalFolders = countTotalFolders(sharedFolder); // นับโฟลเดอร์ย่อย
+    var copiedItems = 0;
+
+    // ใส่ค่าใหม่ใน cache
+    cache.put('totalItems', totalItems, 600); // เก็บค่าทั้งหมดเป็นเวลา 10 นาที
+    cache.put('copiedItems', copiedItems, 600);
+    cache.put('totalFolders', totalFolders, 600); // เก็บจำนวนโฟลเดอร์ย่อย
+
+    var files = sharedFolder.getFiles();
+    while (files.hasNext()) {
+      var file = files.next();
+      file.makeCopy(file.getName(), destinationFolder);
+      copiedItems++;
+      cache.put('copiedItems', copiedItems, 600); // อัปเดตความคืบหน้าทุกไฟล์
+    }
+
+    var subfolders = sharedFolder.getFolders();
+    while (subfolders.hasNext()) {
+      var subfolder = subfolders.next();
+      copySubfolder(subfolder, destinationFolder, cache);
+    }
+
+    return { message: 'คัดลอกโฟลเดอร์สำเร็จ! คัดลอกทั้งหมด ' + copiedItems + ' รายการ' };
+  } catch (error) {
+    Logger.log('เกิดข้อผิดพลาด: ' + error.message);
+    return { message: 'เกิดข้อผิดพลาด: ' + error.message };
+  }
+}
+
+function copySubfolder(sourceFolder, destinationParentFolder, cache) {
+  var newSubfolder = destinationParentFolder.createFolder(sourceFolder.getName());
+
+  var files = sourceFolder.getFiles();
+  var copiedItems = parseInt(cache.get('copiedItems')) || 0;
+
+  while (files.hasNext()) {
+    var file = files.next();
+    file.makeCopy(file.getName(), newSubfolder);
+    copiedItems++;
+    cache.put('copiedItems', copiedItems, 600); // อัปเดตความคืบหน้า
+  }
+
+  var subfolders = sourceFolder.getFolders();
+  while (subfolders.hasNext()) {
+    var subfolder = subfolders.next();
+    copySubfolder(subfolder, newSubfolder, cache);
+  }
+}
+
+// ฟังก์ชันสำหรับนับจำนวนไฟล์ทั้งหมด
+function countTotalItems(folder) {
+  var total = 0;
+  var files = folder.getFiles();
+  while (files.hasNext()) {
+    files.next();
+    total++;
+  }
+  var subfolders = folder.getFolders();
+  while (subfolders.hasNext()) {
+    total += countTotalItems(subfolders.next());
+  }
+  return total;
+}
+
+// ฟังก์ชันสำหรับนับจำนวนโฟลเดอร์ย่อย
+function countTotalFolders(folder) {
+  var totalFolders = 0;
+  var subfolders = folder.getFolders();
+  while (subfolders.hasNext()) {
+    totalFolders++;
+    totalFolders += countTotalFolders(subfolders.next()); // นับโฟลเดอร์ย่อยทั้งหมด
+  }
+  return totalFolders;
+}
+
+// ฟังก์ชันสำหรับดึงสถานะความคืบหน้า
+function getProgressStatus() {
+  var cache = CacheService.getScriptCache();
+  var copiedItems = parseInt(cache.get('copiedItems')) || 0;
+  var totalItems = parseInt(cache.get('totalItems')) || 1;
+  var totalFolders = parseInt(cache.get('totalFolders')) || 0; // ดึงจำนวนโฟลเดอร์ย่อย
+  return { copiedItems: copiedItems, totalItems: totalItems, totalFolders: totalFolders };
+}
+
