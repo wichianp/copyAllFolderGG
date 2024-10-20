@@ -90,18 +90,23 @@
         // รับค่า Folder ID ที่แชร์และปลายทางจากผู้ใช้
         const sharedFolderUrl = document.getElementById('sharedFolderId').value;
         const destinationFolderUrl = document.getElementById('destinationFolderId').value;
+        // ตรวจสอบว่า URL มีรูปแบบที่ถูกต้องหรือไม่
+          if (!sharedFolderUrl || !destinationFolderUrl) {
+            alert('Please enter both shared and destination folder URLs.');
+            return;
+          }
         const sharedFolderId = sharedFolderUrl.split('/')[5]
         const destinationFolderId = destinationFolderUrl.split('/')[5]
+          if (!sharedFolderId || !destinationFolderId) {
+              alert('Invalid folder URLs. Please check and try again.');
+              return;
+          }
         // แสดงแถบความคืบหน้า
         document.getElementById('progressContainer').style.display = 'block';
         document.getElementById('formContainer').style.display = 'none';
 
         // เริ่มต้นคัดลอกโฟลเดอร์
-        google.script.run.withSuccessHandler().withFailureHandler(function(error) {
-          const messageBox = document.getElementById('status');
-          messageBox.textContent = 'เกิดข้อผิดพลาด: ' + error.message;
-          document.getElementById('progressContainer').style.display = 'block';
-        }).copySharedFolderToDestination(sharedFolderId, destinationFolderId);
+        google.script.run.withSuccessHandler().copySharedFolderToDestination(sharedFolderId, destinationFolderId);
 
         // อัปเดตความคืบหน้าในทุก 1 วินาที
         updateProgress();
