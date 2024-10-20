@@ -100,7 +100,7 @@
         google.script.run.withSuccessHandler().withFailureHandler(function(error) {
           const messageBox = document.getElementById('status');
           messageBox.textContent = 'เกิดข้อผิดพลาด: ' + error.message;
-          messageBox.style.display = 'block';
+          document.getElementById('progressContainer').style.display = 'block';
         }).copySharedFolderToDestination(sharedFolderId, destinationFolderId);
 
         // อัปเดตความคืบหน้าในทุก 1 วินาที
